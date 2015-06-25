@@ -2,14 +2,36 @@ var Build = {};
 
 Build.size = 5000;
 Build.step = 100;
+Build.containerWidth = document.getElementById('container').clientWidth;
+Build.containerHeight = document.getElementById('container').clientHeight;
 
-Build.init = function () {
+Build.onDocumentKeyDown = function(event) {
+  if (event.keyCode === 87) {
+    Build.walk();
+  }
+};
 
-  this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
-  this.camera.position.set(500, 800, 1300);
-  this.camera.lookAt(new THREE.Vector3());
+Build.walk = function () {
+  var strideLength = 50;
+  var xUnits, zUnits;
+  var camVector = new THREE.Vector3(0,0,-1);
+  camVector.applyQuaternion(this.camera.quaternion);
+  xComp = camVector.x;
+  zComp = camVector.z;
+  var vecLength = Math.sqrt((xComp*xComp)+(zComp*zComp));
+  var multiplier = strideLength/vecLength;
+  xUnits = multiplier * xComp;
+  zUnits = multiplier * zComp;
+  this.camera.position.x += xUnits;
+  this.camera.position.z += zUnits;
+  this.render();
+};
 
-  this.scene = new THREE.Scene();
+Build.turn = function () {
+
+};
+
+Build.createGroundPlane = function () {
 
   var lineGeo = new THREE.Geometry();
   var size = this.size, step = this.step;
@@ -35,18 +57,38 @@ Build.init = function () {
   plane.visible = true;
   this.scene.add( plane );
 
+};
+
+Build.createLights = function () {
+
   var ambientLight = new THREE.AmbientLight(0x555555);
   this.scene.add(ambientLight);
 
-  var directionalLight = new THREE.DirectionalLight( 0xffffff );
-  directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
-  this.scene.add( directionalLight );
+  var directionalLight = new THREE.DirectionalLight(0xffffff);
+  directionalLight.position.set(1, 0.75, 0.5).normalize();
+  this.scene.add(directionalLight);
+
+};
+
+Build.init = function () {
+
+  this.camera = new THREE.PerspectiveCamera(45, this.containerWidth/this.containerHeight, 1, 10000);
+  this.camera.position.set(500, 200, 1300);
+  this.target = new THREE.Vector3();
+  this.camera.lookAt(this.target);
+
+  this.scene = new THREE.Scene();
+
+  this.createGroundPlane();
+  this.createLights();
 
   this.renderer = new THREE.WebGLRenderer({antialias: true});
-  this.renderer.setClearColor( 0xf0f0f0 );
+  this.renderer.setClearColor(0xbbeeff);
   this.renderer.setPixelRatio(window.devicePixelRatio);
-  this.renderer.setSize(window.innerWidth, window.innerHeight);
+  this.renderer.setSize(this.containerWidth, this.containerHeight);
   document.getElementById('container').appendChild(this.renderer.domElement);
+
+  document.addEventListener('keydown', this.onDocumentKeyDown, false);
 
 };
 

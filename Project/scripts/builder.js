@@ -91,23 +91,12 @@ Build.walk = function (direction) {
   this.render();
 };
 
-Build.moveDirection = new THREE.Vector3();
-Build.eyeVector = new THREE.Vector3();
-Build.eyeDirection = new THREE.Vector3();
-Build.cameraUpDirection = new THREE.Vector3();
-Build.cameraHorizDirection = new THREE.Vector3();
-Build.rotateAxis = new THREE.Vector3();
-Build.rotateAngle = 0;
-Build.rotateSpeed = 10;
-Build.rotateQuaternion = new THREE.Quaternion();
 
 Build.turnSpeed = 0.5;
 
 Build.turn = function (delta) {
 
   // 2D drag direction of mouse
-  //this.moveDirection.set(this._moveCurr.x - this._movePrev.x, this._moveCurr.y - this._movePrev.y, 0);
-
   var xMove = this._moveCurr.x - this._movePrev.x;
   var yMove = this._moveCurr.y - this._movePrev.y;
 
@@ -116,45 +105,7 @@ Build.turn = function (delta) {
   this.camera.rotation.y += -xMove;
   this.camera.rotation.x += yMove;
 
-  //this.rotateQuaternion.set(yMove * rotMult, -xMove * rotMult, 0, 1).normalize();
-  //this.camera.quaternion.multiply(this.rotateQuaternion);
-  //this.camera.rotation.setFromQuaternion(this.camera.quaternion, this.camera.rotation.order);
-
-  //this.rotateAngle = this.moveDirection.length();
-
-  // if (this.rotateAngle) {
-
-  //   this.eyeVector.copy(this.camera.position).sub(this.target);
-
-  //   // get correct vector for z axis of camera
-  //   //this.updateCamVector();
-  //   //this.eyeVector.copy(this.camVector);
-  //   this.eyeDirection.copy(this.eyeVector).normalize();
-
-  //   // get correct vector for up (y) axis of camera
-  //   this.cameraUpDirection.copy(this.camera.up).normalize();
-
-  //   this.cameraHorizDirection.crossVectors(this.cameraUpDirection, this.eyeDirection).normalize();
-
-  //   this.cameraUpDirection.setLength(this._moveCurr.y - this._movePrev.y);
-  //   this.cameraHorizDirection.setLength(this._moveCurr.x - this._movePrev.x);
-
-  //   this.moveDirection.copy(this.cameraUpDirection.add(this.cameraHorizDirection));
-  //   this.rotateAxis.crossVectors(this.moveDirection, this.eyeVector).normalize();
-
-  //   this.rotateAngle *= this.rotateSpeed;
-
-  //   this.rotateQuaternion.setFromAxisAngle(this.rotateAxis, this.rotateAngle);
-  //   this.eyeVector.applyQuaternion(this.rotateQuaternion);
-  //   this.camera.up.applyQuaternion(this.rotateQuaternion);
-  // }
-
-  // this.camera.position.addVectors(this.target, this.eyeVector);
-  // this.camera.lookAt(this.target);
-  //this.camera.position.applyQuaternion(this.rotateQuaternion);
-
   this._movePrev.copy(this._moveCurr);
-  console.log(this.camera.rotation);
   this.render();
 
 };
@@ -201,9 +152,9 @@ Build.createLights = function () {
 Build.init = function () {
 
   this.camera = new THREE.PerspectiveCamera(45, this.containerWidth/this.containerHeight, 1, 10000);
-  this.camera.position.set(500, 200, 1300);
+  this.camera.position.set(0, 200, 1300);
   this.target = new THREE.Vector3();
-  this.camera.lookAt(this.target);
+  // best rotation order to avoid camera roll
   this.camera.rotation.order = "YXZ";
 
   this.scene = new THREE.Scene();

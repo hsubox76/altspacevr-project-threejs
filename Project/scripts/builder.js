@@ -244,7 +244,7 @@ buildApp.build = function (intersect) {
 
 };
 
-buildApp.gravity = -20;
+buildApp.gravity = -1;
 buildApp.shootVelocity = 50;
 buildApp.shotObjects = [];
 
@@ -254,6 +254,7 @@ buildApp.shoot = function () {
   block.mesh.position.copy(this.camera.position);
   this.updateCamVector();
   block.shootDirection.copy(this.camVector).normalize();
+  block.yVelocity = block.shootDirection.y * buildApp.shootVelocity;
   this.shotObjects.push(block);
 
 };
@@ -262,13 +263,15 @@ buildApp.updateShotObjects = function () {
   var block;
   for (var i = 0; i < buildApp.shotObjects.length; i++) {
     block = this.shotObjects[i];
-    // remove from array of objects to monitor if it has hit ground
-    if (block.mesh.position.y <= this.cubeSize/2) {
+    // if next step will put it in the ground, remove from shootObjects array
+    if (block.mesh.position.y + block.yVelocity <= this.cubeSize/2) {
       buildApp.shotObjects.splice(i,1);
     } else {
       block.mesh.position.x += block.shootDirection.x * buildApp.shootVelocity;
-      block.mesh.position.y += (block.shootDirection.y * buildApp.shootVelocity) + buildApp.gravity;
+      block.mesh.position.y += block.yVelocity;
       block.mesh.position.z += block.shootDirection.z * buildApp.shootVelocity;
+      block.yVelocity += buildApp.gravity;
+      console.log(block.mesh.position.y);
     }
   }
 

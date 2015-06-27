@@ -87,9 +87,41 @@ buildApp.getIntersect = function(e) {
 // Class for new building blocks
 buildApp.Block = function () {
   this.mesh = new THREE.Mesh(buildApp.cubeGeo, buildApp.cubeMaterial);
+  this.size = buildApp.cubeSize;
   this.shootDirection = new THREE.Vector3();
   buildApp.scene.add(this.mesh);
   buildApp.objects.push(this.mesh);
+};
+
+
+buildApp.Block.prototype.getIntersect = function(objects) {
+
+  var currentDirection = new THREE.Vector3();
+  var currentPosition = new THREE.Vector3();
+
+  currentDirection.set(this.shootDirection.x * this.velocity, this.yVelocity,
+    this.shootDirection.z * this.velocity).normalize();
+
+  currentPosition.set(this.mesh.position.x, this.mesh.position.y-this.size/2, this.mesh.position.z);
+
+  this.raycaster.set(currentPosition, currentDirection);
+  this.raycaster.far = this.size*2;
+  this.raycaster.near = this.size;
+
+  var intersects = this.raycaster.intersectObjects(objects);
+  if (intersects.length > 0) {
+    console.log(intersects[0].object.geometry);
+    console.log(intersects[0].point);
+    return intersects[0];
+  }
+  return null;
+};
+
+buildApp.Block.prototype.landAndSnap = function(intersect) {
+
+  this.mesh.position.copy(intersect.point).add(intersect.face.normal);
+  this.mesh.position.divideScalar(this.size).floor().multiplyScalar(this.size).addScalar(this.size/2);
+
 };
 
 // =============================
@@ -254,6 +286,7 @@ buildApp.shoot = function () {
   block.mesh.position.copy(this.camera.position);
   this.updateCamVector();
   block.shootDirection.copy(this.camVector).normalize();
+  block.velocity = buildApp.shootVelocity;
   block.yVelocity = block.shootDirection.y * buildApp.shootVelocity;
   block.raycaster = new THREE.Raycaster();
   this.shotObjects.push(block);
@@ -266,17 +299,12 @@ buildApp.updateShotObjects = function () {
 
   for (var i = 0; i < buildApp.shotObjects.length; i++) {
     block = this.shotObjects[i];
-    var intersect = this.getBlockIntersect(block);
+    var intersect = block.getIntersect(this.objects);
     // if it is going to collide
     if (intersect) {
       // remove from shotObjects array
       buildApp.shotObjects.splice(i,1);
-      buildApp.landAndSnap(block, intersect);
-    // } else if (block.mesh.position.y + block.yVelocity <= buildApp.cubeSize/2) {
-    //   // failsafe to make sure it doesn't pass through ground plane
-    //   buildApp.shotObjects.splice(i,1);
-    //   block.mesh.position.y = buildApp.cubeSize/2;
-    //   block.mesh.position.divideScalar(this.cubeSize).floor().multiplyScalar(this.cubeSize).addScalar(this.cubeSize/2);
+      block.landAndSnap(intersect);
     } else {
       block.mesh.position.x += block.shootDirection.x * buildApp.shootVelocity;
       block.mesh.position.y += block.yVelocity;
@@ -284,36 +312,6 @@ buildApp.updateShotObjects = function () {
       block.yVelocity += buildApp.gravity;
     }
   }
-};
-
-buildApp.getBlockIntersect = function(block) {
-
-  var currentDirection = new THREE.Vector3();
-  var currentPosition = new THREE.Vector3();
-
-  currentDirection.set(block.shootDirection.x * buildApp.shootVelocity, block.yVelocity,
-    block.shootDirection.z * buildApp.shootVelocity).normalize();
-
-  currentPosition.set(block.mesh.position.x, block.mesh.position.y-this.cubeSize/2, block.mesh.position.z);
-
-  block.raycaster.set(currentPosition, currentDirection);
-  block.raycaster.far = this.cubeSize*2;
-  block.raycaster.near = this.cubeSize;
-
-  var intersects = block.raycaster.intersectObjects(this.objects);
-  if (intersects.length > 0) {
-    console.log(intersects[0].object.geometry);
-    console.log(intersects[0].point);;
-    return intersects[0];
-  }
-  return null;
-};
-
-buildApp.landAndSnap = function(block, intersect) {
-
-  block.mesh.position.copy(intersect.point).add(intersect.face.normal);
-  block.mesh.position.divideScalar(this.cubeSize).floor().multiplyScalar(this.cubeSize).addScalar(this.cubeSize/2);
-
 };
 
 // ========================================

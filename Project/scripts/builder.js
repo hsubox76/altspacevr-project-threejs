@@ -1,34 +1,39 @@
-// Button numerical value constants
-var Buttons = {};
-Buttons.W = 87;
-Buttons.S = 83;
-Buttons.LMB = 0;
-Buttons.NoButton = -1;
 
 // Main namespace
-var BuildApp = {};
+var buildApp = {};
+
+// Button numerical value constants
+buildApp.BUTTONS = {};
+buildApp.BUTTONS.W = 87;
+buildApp.BUTTONS.S = 83;
+buildApp.BUTTONS.SHIFT = 16;
+buildApp.BUTTONS.LMB = 0;
+buildApp.BUTTONS.NoButton = -1;
+
+// interface mode
+buildApp.mode = 'look';
 
 // Grid stats
-BuildApp.size = 5000;
-BuildApp.cubeSize = 100;
+buildApp.size = 5000;
+buildApp.cubeSize = 100;
 
 // Viewbox
-BuildApp.containerWidth = document.getElementById('container').clientWidth;
-BuildApp.containerHeight = document.getElementById('container').clientHeight;
-BuildApp.containerTop = 0;
-BuildApp.containerLeft = 0;
+buildApp.containerWidth = document.getElementById('container').clientWidth;
+buildApp.containerHeight = document.getElementById('container').clientHeight;
+buildApp.containerTop = 0;
+buildApp.containerLeft = 0;
 
 // Movement constants
-BuildApp.strideLength = 50;
-BuildApp.turnSpeed = 0.5;
+buildApp.strideLength = 50;
+buildApp.turnSpeed = 0.5;
 
-BuildApp.camVector = new THREE.Vector3();
+buildApp.camVector = new THREE.Vector3();
 
 // Mouse move tracker
-BuildApp._moveCurr = new THREE.Vector2();
-BuildApp._movePrev = new THREE.Vector2();
+buildApp._moveCurr = new THREE.Vector2();
+buildApp._movePrev = new THREE.Vector2();
 
-BuildApp.objects = [];
+buildApp.objects = [];
 
 
 // ================
@@ -37,15 +42,15 @@ BuildApp.objects = [];
 
 // From Three.JS Trackball Controls library
 // gets vector starting at center of screen going toward mouse position
-BuildApp.getMouseOnCircle = ( function () {
+buildApp.getMouseOnCircle = ( function () {
 
   var vector = new THREE.Vector2();
 
   return function ( pageX, pageY ) {
 
     vector.set(
-      ( ( pageX - BuildApp.containerWidth * 0.5 - BuildApp.containerLeft ) / ( BuildApp.containerWidth * 0.5 ) ),
-      ( ( BuildApp.containerHeight + 2 * ( BuildApp.containerTop - pageY ) ) / BuildApp.containerWidth )
+      ( ( pageX - buildApp.containerWidth * 0.5 - buildApp.containerLeft ) / ( buildApp.containerWidth * 0.5 ) ),
+      ( ( buildApp.containerHeight + 2 * ( buildApp.containerTop - pageY ) ) / buildApp.containerWidth )
     );
 
     return vector;
@@ -54,7 +59,7 @@ BuildApp.getMouseOnCircle = ( function () {
 }() );
 
 // Helper to get camera direction vector
-BuildApp.updateCamVector = function() {
+buildApp.updateCamVector = function() {
   this.camVector.set(0,0,-1);
   this.camVector.applyQuaternion(this.camera.quaternion);
   return this.camVector;
@@ -64,87 +69,116 @@ BuildApp.updateCamVector = function() {
 // Mouse/keyboard event handlers
 // =============================
 
-BuildApp.onKeyDown = function(event) {
+buildApp.onKeyDown = function(event) {
   
   event.preventDefault();
 
-  if (event.keyCode === Buttons.W) {
-    BuildApp.walk(1);
+  if (event.keyCode === buildApp.BUTTONS.W) {
+    buildApp.walk(1);
   }
-  if (event.keyCode === Buttons.S) {
-    BuildApp.walk(-1);
+  if (event.keyCode === buildApp.BUTTONS.S) {
+    buildApp.walk(-1);
+  }
+  if (event.keyCode === buildApp.BUTTONS.SHIFT) {
+    buildApp.mode = 'build';
+    document.addEventListener('keyup', buildApp.onKeyUp, false);
   }
 };
 
+buildApp.onKeyUp = function(event) {
+
+  event.preventDefault();
+
+  if (buildApp.mode === 'build') {
+    buildApp.mode = 'look';
+    document.removeEventListener('keyup', buildApp.onKeyUp);
+    buildApp.rollOverMesh.visible = false;
+  }
+
+};
+
+buildApp.getIntersect = function(e) {
+
+    buildApp.mouse.set( (e.clientX / buildApp.containerWidth) * 2 - 1, - (e.clientY / buildApp.containerHeight) * 2 + 1);
+    buildApp.raycaster.setFromCamera(buildApp.mouse, buildApp.camera);
+
+    var intersects = buildApp.raycaster.intersectObjects(buildApp.objects);
+
+    if (intersects.length > 0) {
+      return intersects[0];
+    } else {
+      return null;
+    }
+
+};
+
 // TODO: Only place cubes when shift is down
-BuildApp.onMouseDown = function(event) {
+buildApp.onMouseDown = function(event) {
   
   event.preventDefault();
 
-  if (event.button === Buttons.LMB) {
+  if (event.button === buildApp.BUTTONS.LMB) {
 
-    BuildApp._moveCurr.copy(BuildApp.getMouseOnCircle(event.pageX, event.pageY));
-    BuildApp._movePrev.copy(BuildApp._moveCurr);
+    buildApp._moveCurr.copy(buildApp.getMouseOnCircle(event.pageX, event.pageY));
+    buildApp._movePrev.copy(buildApp._moveCurr);
 
-    BuildApp.currentMouseButton = Buttons.LMB;
-    document.addEventListener('mouseup', BuildApp.onMouseUp, false );
+    buildApp.currentMouseButton = buildApp.BUTTONS.LMB;
+    document.addEventListener('mouseup', buildApp.onMouseUp, false );
 
-    BuildApp.mouse.set( (event.clientX / BuildApp.containerWidth) * 2 - 1, - (event.clientY / BuildApp.containerHeight) * 2 + 1);
-    BuildApp.raycaster.setFromCamera(BuildApp.mouse, BuildApp.camera);
+    if (buildApp.mode === 'build') {
 
-    var intersects = BuildApp.raycaster.intersectObjects(BuildApp.objects);
+      var intersect = buildApp.getIntersect(event);
 
-    if (intersects.length > 0) {
-      var voxel = new THREE.Mesh(BuildApp.cubeGeo, BuildApp.cubeMaterial);
-      voxel.position.copy(intersects[0].point).add(intersects[0].face.normal);
-      voxel.position.divideScalar(BuildApp.cubeSize).floor().multiplyScalar(BuildApp.cubeSize).addScalar(BuildApp.cubeSize/2);
-      BuildApp.scene.add(voxel);
-      BuildApp.objects.push(voxel);
+      if (intersect) {
+        var voxel = new THREE.Mesh(buildApp.cubeGeo, buildApp.cubeMaterial);
+        voxel.position.copy(intersect.point).add(intersect.face.normal);
+        voxel.position.divideScalar(buildApp.cubeSize).floor().multiplyScalar(buildApp.cubeSize).addScalar(buildApp.cubeSize/2);
+        buildApp.scene.add(voxel);
+        buildApp.objects.push(voxel);
+      }
     }
 
   }
 };
 
 // TODO: Only show helper cube when shift is down
-BuildApp.onMouseMove = function(event) {
+buildApp.onMouseMove = function(event) {
 
   event.preventDefault();
 
-  if (BuildApp.currentMouseButton === Buttons.LMB) {
+  if (buildApp.mode === 'look') {
 
-    BuildApp._movePrev.copy(BuildApp._moveCurr);
-    BuildApp._moveCurr.copy(BuildApp.getMouseOnCircle(event.pageX, event.pageY));
-    BuildApp.turn(1);
+    buildApp._movePrev.copy(buildApp._moveCurr);
+    buildApp._moveCurr.copy(buildApp.getMouseOnCircle(event.pageX, event.pageY));
+    buildApp.turn(1);
 
-   } else {
+   } else if (buildApp.mode === 'build') {
 
-    BuildApp.mouse.set( (event.clientX / BuildApp.containerWidth) * 2 - 1, - (event.clientY / BuildApp.containerHeight) * 2 + 1);
-    BuildApp.raycaster.setFromCamera(BuildApp.mouse, BuildApp.camera);
+    var intersect = buildApp.getIntersect(event);
 
-    var intersects = BuildApp.raycaster.intersectObjects(BuildApp.objects);
-
-    if (intersects.length > 0) {
-      BuildApp.rollOverMesh.position.copy(intersects[0].point).add(intersects[0].face.normal);
-      BuildApp.rollOverMesh.position.divideScalar(BuildApp.cubeSize).floor().multiplyScalar(BuildApp.cubeSize).addScalar(BuildApp.cubeSize/2);
+    if (intersect) {
+      buildApp.rollOverMesh.visible = true;
+      buildApp.rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
+      buildApp.rollOverMesh.position.divideScalar(buildApp.cubeSize).floor().multiplyScalar(buildApp.cubeSize).addScalar(buildApp.cubeSize/2);
     }
 
-    BuildApp.render();
+    buildApp.render();
 
   }
 };
 
-BuildApp.onMouseUp = function(event) {
+buildApp.onMouseUp = function(event) {
   
   event.preventDefault();
   
-  BuildApp.currentMouseButton = Buttons.NoButton;
+  buildApp.currentMouseButton = buildApp.BUTTONS.NoButton;
 
-  //document.removeEventListener('mousemove', BuildApp.onMouseMove);
-  document.removeEventListener('mouseup', BuildApp.onMouseUp);
+  //document.removeEventListener('mousemove', buildApp.onMouseMove);
+  document.removeEventListener('mouseup', buildApp.onMouseUp);
 };
 
 // Walk camera fwd/back in response to keypress
-BuildApp.walk = function (direction) {
+buildApp.walk = function (direction) {
   var xUnits, zUnits;
   this.updateCamVector();
   xComp = this.camVector.x;
@@ -160,7 +194,7 @@ BuildApp.walk = function (direction) {
 
 
 // Turn camera in direction of mouse drag
-BuildApp.turn = function (delta) {
+buildApp.turn = function (delta) {
 
   // 2D drag direction of mouse
   var xMove = this._moveCurr.x - this._movePrev.x;
@@ -180,7 +214,7 @@ BuildApp.turn = function (delta) {
 // Functions for building basic start scene
 // ========================================
 
-BuildApp.createGroundPlane = function () {
+buildApp.createGroundPlane = function () {
 
   var lineGeo = new THREE.Geometry();
   var size = this.size, step = this.cubeSize;
@@ -205,11 +239,11 @@ BuildApp.createGroundPlane = function () {
   plane = new THREE.Mesh(planeGeo, planeMat);
   plane.visible = true;
   this.scene.add( plane );
-  BuildApp.objects.push(plane);
+  buildApp.objects.push(plane);
 
 };
 
-BuildApp.createLights = function () {
+buildApp.createLights = function () {
 
   var ambientLight = new THREE.AmbientLight(0x555555);
   this.scene.add(ambientLight);
@@ -222,16 +256,17 @@ BuildApp.createLights = function () {
 
 // rollover helper cube (from three.js voxelpainter)
 
-BuildApp.createRolloverCube = function() {
+buildApp.createRolloverCube = function() {
   var rollOverGeo = new THREE.BoxGeometry( this.cubeSize, this.cubeSize, this.cubeSize );
   var rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
   this.rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+  this.rollOverMesh.visible = false;
   this.scene.add( this.rollOverMesh );
 };
 
 // define basic building block cube
 
-BuildApp.defineCube = function() {
+buildApp.defineCube = function() {
   this.cubeGeo = new THREE.BoxGeometry(this.cubeSize, this.cubeSize, this.cubeSize);
   this.cubeMaterial = new THREE.MeshLambertMaterial({color: 0xfeb74c, shading: THREE.FlatShading});
 };
@@ -241,7 +276,7 @@ BuildApp.defineCube = function() {
 // Init: basic scene components, event handlers
 // ============================================
 
-BuildApp.init = function () {
+buildApp.init = function () {
 
   this.camera = new THREE.PerspectiveCamera(45, this.containerWidth/this.containerHeight, 1, 10000);
   this.camera.position.set(0, 200, 1300);
@@ -270,15 +305,15 @@ BuildApp.init = function () {
 
   document.addEventListener('keydown', this.onKeyDown, false);
   document.addEventListener('mousedown', this.onMouseDown, false);
-  document.addEventListener('mousemove', BuildApp.onMouseMove, false);
+  document.addEventListener('mousemove', buildApp.onMouseMove, false);
 
 };
 
-BuildApp.render = function () {
+buildApp.render = function () {
 
   this.renderer.render(this.scene, this.camera);
 
 };
 
-BuildApp.init();
-BuildApp.render();
+buildApp.init();
+buildApp.render();

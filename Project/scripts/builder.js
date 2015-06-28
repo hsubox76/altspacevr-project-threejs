@@ -17,6 +17,13 @@ buildApp.BUTTONS.LMB = 0;
 buildApp.BUTTONS.RMB = 2;
 buildApp.BUTTONS.NoButton = -1;
 
+// Colors
+buildApp.palette = [
+  { html: '#feb74c', hex: 0xfeb74c},
+  { html: '#0088cc', hex: 0x0088cc},
+  { html: '#aa88cc', hex: 0xaa88cc}
+];
+
 // interface mode - look, build, shoot
 buildApp.mode = 'none';
 
@@ -50,6 +57,7 @@ buildApp._moveCurr = new THREE.Vector2();
 buildApp._movePrev = new THREE.Vector2();
 
 buildApp.objects = [];
+buildApp.blockMats = [];
 
 
 // ================
@@ -102,8 +110,9 @@ buildApp.getIntersect = function(e) {
 // ================
 
 // Class for new building blocks
-buildApp.Block = function () {
-  this.mesh = new THREE.Mesh(buildApp.cubeGeo, buildApp.cubeMaterial);
+buildApp.Block = function (mat) {
+  console.log(mat);
+  this.mesh = new THREE.Mesh(buildApp.cubeGeo, mat);
   this.size = buildApp.cubeSize;
   this.shootDirection = new THREE.Vector3();
   buildApp.scene.add(this.mesh);
@@ -147,6 +156,11 @@ buildApp.Hud = function () {
     'build': 'cube_icon.png',
     'delete': 'delete_icon.png'
   };
+  this.ammo = 'yellow';
+  this.ammoProps = {
+    0: '#feb74c',
+    1: '#0088cc'
+  };
 };
 
 buildApp.Hud.prototype.changeMode = function (mode) {
@@ -155,6 +169,12 @@ buildApp.Hud.prototype.changeMode = function (mode) {
     bgImage = "url('lib/images/" + bgImage + "')";
   }
   this.modeEl.style.backgroundImage = bgImage;
+};
+
+buildApp.Hud.prototype.changeAmmo = function (ammoIndex) {
+  var color = buildApp.palette[ammoIndex].html;
+
+  this.ammoEl.style.backgroundColor = color;
 };
 
 // =============================
@@ -183,6 +203,13 @@ buildApp.onKeyDown = function(event) {
     buildApp.mode = 'delete';
     buildApp.hud.changeMode('delete');
     document.addEventListener('keyup', buildApp.onKeyUp, false);
+  }
+  if (event.keyCode === buildApp.BUTTONS.TAB) {
+    buildApp.currentMat += 1;
+    if (buildApp.currentMat >= buildApp.blockMats.length) {
+      buildApp.currentMat = 0;
+    }
+    buildApp.hud.changeAmmo(buildApp.currentMat);
   }
 };
 
@@ -375,7 +402,7 @@ buildApp.projectCube = function (intersect) {
 // Create new building block cube at mouse location
 buildApp.build = function (intersect) {
 
-  var block = new buildApp.Block();
+  var block = new buildApp.Block(buildApp.blockMats[buildApp.currentMat]);
   block.mesh.position.copy(intersect.point).add(intersect.face.normal);
   block.mesh.position.divideScalar(buildApp.cubeSize).floor().multiplyScalar(buildApp.cubeSize).addScalar(buildApp.cubeSize/2);
       
@@ -386,7 +413,7 @@ buildApp.build = function (intersect) {
 buildApp.shoot = function () {
 
   if (!this.cooldownOn) {
-    var block = new buildApp.Block();
+    var block = new buildApp.Block(buildApp.blockMats[buildApp.currentMat]);
     block.mesh.position.copy(this.camera.position);
     this.updateCamVector();
     block.shootDirection.copy(this.camVector).normalize();
@@ -481,7 +508,10 @@ buildApp.createRolloverCube = function() {
 
 buildApp.defineCube = function() {
   this.cubeGeo = new THREE.BoxGeometry(this.cubeSize, this.cubeSize, this.cubeSize);
-  this.cubeMaterial = new THREE.MeshLambertMaterial({color: 0xfeb74c, shading: THREE.FlatShading});
+  for (i = 0; i < buildApp.palette.length; i++) {
+    this.blockMats.push(new THREE.MeshLambertMaterial({color: buildApp.palette[i].hex, shading: THREE.FlatShading}));
+  }
+  this.currentMat = 0;
 };
 
 
@@ -514,6 +544,7 @@ buildApp.init = function () {
   this.hud = new this.Hud();
 
   this.hud.modeEl = document.getElementById('mode');
+  this.hud.ammoEl = document.getElementById('ammo');
 
   this.renderer = new THREE.WebGLRenderer({antialias: true});
   this.renderer.setClearColor(0xbbeeff);

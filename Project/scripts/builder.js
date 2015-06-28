@@ -14,9 +14,10 @@ buildApp.BUTTONS.NoButton = -1;
 // interface mode - look, build, shoot
 buildApp.mode = 'none';
 
-// Grid stats
+// Basic scene stats
 buildApp.size = 5000;
 buildApp.cubeSize = 100;
+buildApp.gravity = -1;
 
 // Viewbox
 buildApp.containerWidth = document.getElementById('container').clientWidth;
@@ -28,6 +29,10 @@ buildApp.containerLeft = 0;
 buildApp.strideLength = 50;
 buildApp.turnSpeed = 0.5;
 buildApp.playerHeight = 200;
+
+// Shooting vars
+buildApp.shootVelocity = 50;
+buildApp.shotObjects = [];
 
 buildApp.camVector = new THREE.Vector3();
 
@@ -110,8 +115,6 @@ buildApp.Block.prototype.getIntersect = function(objects) {
 
   var intersects = this.raycaster.intersectObjects(objects);
   if (intersects.length > 0) {
-    console.log(intersects[0].object.geometry);
-    console.log(intersects[0].point);
     return intersects[0];
   }
   return null;
@@ -222,18 +225,53 @@ buildApp.onMouseUp = function(event) {
 // Environment interaction functions
 // =================================
 
+// Find y height of terrain at next step
+buildApp.lookAheadYHeight = function (x, z) {
+  var lookAheadPosition = new THREE.Vector3(x, this.camera.position.y, z);
+  var downVector = new THREE.Vector3(0, -1, 0);
+  this.raycasterGround.set(lookAheadPosition, downVector);
+  var intersects = this.raycasterGround.intersectObjects(this.objects);
+  if (intersects.length > 0) {
+    return intersects[0].point.y;
+  }
+};
+
+// See if next step will collide with some terrain at face height
+buildApp.lookAheadCollide = function (pos, x, z) {
+  var lookAheadDirection = new THREE.Vector3(x, 0, z);
+  var playerHeadPosition = new THREE.Vector3();
+  playerHeadPosition.copy(pos);
+  playerHeadPosition.y -= 50;
+  lookAheadDirection.normalize();
+  this.raycasterLookAhead.set(pos, lookAheadDirection);
+  this.raycasterLookAhead.near = this.cubeSize/2;
+  this.raycasterLookAhead.far = this.cubeSize;
+  var intersects = this.raycasterLookAhead.intersectObjects(this.objects);
+  if (intersects.length > 0) {
+    console.log(playerHeadPosition.y);
+    console.log(intersects[0].distance);
+    return true;
+  }
+  return false;
+};
+
 // Walk camera fwd/back in response to keypress
 buildApp.walk = function (direction) {
   var xUnits, zUnits;
   this.updateCamVector();
-  xComp = this.camVector.x;
-  zComp = this.camVector.z;
+  var xComp = this.camVector.x;
+  var zComp = this.camVector.z;
   var vecLength = Math.sqrt((xComp*xComp)+(zComp*zComp));
   var multiplier = direction * this.strideLength/vecLength;
   xUnits = multiplier * xComp;
   zUnits = multiplier * zComp;
-  this.camera.position.x += xUnits;
-  this.camera.position.z += zUnits;
+  var nextYHeight = this.lookAheadYHeight(this.camera.position.x + xUnits, this.camera.position.z + zUnits);
+  var nextStepCollide = this.lookAheadCollide(this.camera.position, xUnits, zUnits);
+  if (!nextStepCollide) {
+    this.camera.position.x += xUnits;
+    this.camera.position.y = nextYHeight + this.playerHeight;
+    this.camera.position.z += zUnits;
+  }
   //this.render();
 };
 
@@ -275,10 +313,6 @@ buildApp.build = function (intersect) {
       
 
 };
-
-buildApp.gravity = -1;
-buildApp.shootVelocity = 50;
-buildApp.shotObjects = [];
 
 buildApp.shoot = function () {
 
@@ -392,6 +426,9 @@ buildApp.init = function () {
 
   this.raycaster = new THREE.Raycaster();
   this.mouse = new THREE.Vector2();
+
+  this.raycasterGround = new THREE.Raycaster();
+  this.raycasterLookAhead = new THREE.Raycaster();
 
   this.createGroundPlane();
   this.createLights();

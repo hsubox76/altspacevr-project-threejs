@@ -1,3 +1,6 @@
+// TODO:
+// 3) chamber different colors of blocks
+// 4) strafe
 
 // Main namespace
 var buildApp = {};
@@ -7,8 +10,11 @@ buildApp.BUTTONS = {};
 buildApp.BUTTONS.W = 87;
 buildApp.BUTTONS.S = 83;
 buildApp.BUTTONS.SHIFT = 16;
+buildApp.BUTTONS.CTRL = 17;
 buildApp.BUTTONS.SPACE = 32;
+buildApp.BUTTONS.TAB = 9;
 buildApp.BUTTONS.LMB = 0;
+buildApp.BUTTONS.RMB = 2;
 buildApp.BUTTONS.NoButton = -1;
 
 // interface mode - look, build, shoot
@@ -34,6 +40,8 @@ buildApp.playerVelocity = 0;
 // Shooting vars
 buildApp.shootVelocity = 50;
 buildApp.shotObjects = [];
+buildApp.shotMinInterval = 500; // limits rate of fire
+buildApp.cooldownOn = false;
 
 buildApp.camVector = new THREE.Vector3();
 
@@ -89,6 +97,9 @@ buildApp.getIntersect = function(e) {
 
 };
 
+// ================
+// Classes/objs
+// ================
 
 // Class for new building blocks
 buildApp.Block = function () {
@@ -128,6 +139,24 @@ buildApp.Block.prototype.landAndSnap = function(intersect) {
 
 };
 
+buildApp.Hud = function () {
+  this.mode = 'none';
+  this.modeImages = {
+    'none': '',
+    'look': 'eye_icon.png',
+    'build': 'cube_icon.png',
+    'delete': 'delete_icon.png'
+  };
+};
+
+buildApp.Hud.prototype.changeMode = function (mode) {
+  var bgImage = this.modeImages[mode];
+  if (bgImage) {
+    bgImage = "url('lib/images/" + bgImage + "')";
+  }
+  this.modeEl.style.backgroundImage = bgImage;
+};
+
 // =============================
 // Mouse/keyboard event handlers
 // =============================
@@ -147,6 +176,12 @@ buildApp.onKeyDown = function(event) {
   }
   if (event.keyCode === buildApp.BUTTONS.SHIFT) {
     buildApp.mode = 'build';
+    buildApp.hud.changeMode('build');
+    document.addEventListener('keyup', buildApp.onKeyUp, false);
+  }
+  if (event.keyCode === buildApp.BUTTONS.CTRL) {
+    buildApp.mode = 'delete';
+    buildApp.hud.changeMode('delete');
     document.addEventListener('keyup', buildApp.onKeyUp, false);
   }
 };
@@ -155,8 +190,9 @@ buildApp.onKeyUp = function(event) {
 
   event.preventDefault();
 
-  if (buildApp.mode === 'build') {
+  if (buildApp.mode === 'build' || buildApp.mode === 'delete') {
     buildApp.mode = 'none';
+    buildApp.hud.changeMode('none');
     buildApp.rollOverMesh.visible = false;
     //buildApp.render();
     document.removeEventListener('keyup', buildApp.onKeyUp);
@@ -168,24 +204,34 @@ buildApp.onMouseDown = function(event) {
   
   event.preventDefault();
 
-  if (event.button === buildApp.BUTTONS.LMB) {
+  if (event.button === buildApp.BUTTONS.LMB) { // look mode
 
     buildApp._moveCurr.copy(buildApp.getMouseOnCircle(event.pageX, event.pageY));
     buildApp._movePrev.copy(buildApp._moveCurr);
     if (buildApp.mode === 'none') {
       buildApp.mode = 'look';
+      buildApp.hud.changeMode('look');
     }
 
     document.addEventListener('mouseup', buildApp.onMouseUp, false );
-    if (buildApp.mode === 'build') {
+
+    if (buildApp.mode === 'build' || buildApp.mode === 'delete') {
 
       var intersect = buildApp.getIntersect(event);
 
       if (intersect) {
-        buildApp.build(intersect);
+        if (buildApp.mode === 'build') {
+          buildApp.build(intersect);
+        } else {
+          if (intersect.object != buildApp.plane) {
+            buildApp.scene.remove(intersect.object);
+            buildApp.objects.splice(buildApp.objects.indexOf(intersect.object),1);
+          }
+        }
       }
     }
   }
+
 };
 
 buildApp.onMouseMove = function(event) {
@@ -215,6 +261,7 @@ buildApp.onMouseUp = function(event) {
 
   if (buildApp.mode === 'look') {
     buildApp.mode = 'none';
+    buildApp.hud.changeMode('none');
   }
 
   //document.removeEventListener('mousemove', buildApp.onMouseMove);
@@ -249,8 +296,6 @@ buildApp.lookAheadCollide = function (pos, x, z) {
   this.raycasterLookAhead.far = this.cubeSize;
   var intersects = this.raycasterLookAhead.intersectObjects(this.objects);
   if (intersects.length > 0) {
-    console.log(playerHeadPosition.y);
-    console.log(intersects[0].distance);
     return true;
   }
   return false;
@@ -278,7 +323,6 @@ buildApp.walk = function (direction) {
       this.camera.position.y = nextYHeight + this.playerHeight;
     }
   }
-  //this.render();
 };
 
 
@@ -315,7 +359,6 @@ buildApp.turn = function (delta) {
   this.camera.rotation.x += yMove;
 
   this._movePrev.copy(this._moveCurr);
-  //this.render();
 
 };
 
@@ -326,7 +369,6 @@ buildApp.projectCube = function (intersect) {
   this.rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
   this.rollOverMesh.position.divideScalar(this.cubeSize).floor().multiplyScalar(this.cubeSize).addScalar(this.cubeSize/2);
 
-  //this.render();
 
 };
 
@@ -340,16 +382,23 @@ buildApp.build = function (intersect) {
 
 };
 
+// Launch a new block from gun
 buildApp.shoot = function () {
 
-  var block = new buildApp.Block();
-  block.mesh.position.copy(this.camera.position);
-  this.updateCamVector();
-  block.shootDirection.copy(this.camVector).normalize();
-  block.velocity = buildApp.shootVelocity;
-  block.yVelocity = block.shootDirection.y * buildApp.shootVelocity;
-  block.raycaster = new THREE.Raycaster();
-  this.shotObjects.push(block);
+  if (!this.cooldownOn) {
+    var block = new buildApp.Block();
+    block.mesh.position.copy(this.camera.position);
+    this.updateCamVector();
+    block.shootDirection.copy(this.camVector).normalize();
+    block.velocity = buildApp.shootVelocity;
+    block.yVelocity = block.shootDirection.y * buildApp.shootVelocity;
+    block.raycaster = new THREE.Raycaster();
+    this.shotObjects.push(block);
+
+    // set cooldown on after firing, to turn off after shotmininterval;
+    this.cooldownOn = true;
+    setTimeout(function () { buildApp.cooldownOn = false; }, buildApp.shotMinInterval);
+  }
 
 };
 
@@ -400,10 +449,10 @@ buildApp.createGroundPlane = function () {
   planeGeo.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
   var planeMat = new THREE.MeshBasicMaterial( {color: 0x009900 });
 
-  plane = new THREE.Mesh(planeGeo, planeMat);
-  plane.visible = true;
-  this.scene.add( plane );
-  buildApp.objects.push(plane);
+  this.plane = new THREE.Mesh(planeGeo, planeMat);
+  this.plane.visible = true;
+  this.scene.add(this.plane);
+  buildApp.objects.push(this.plane);
 
 };
 
@@ -461,6 +510,10 @@ buildApp.init = function () {
 
   this.createRolloverCube();
   this.defineCube();
+
+  this.hud = new this.Hud();
+
+  this.hud.modeEl = document.getElementById('mode');
 
   this.renderer = new THREE.WebGLRenderer({antialias: true});
   this.renderer.setClearColor(0xbbeeff);

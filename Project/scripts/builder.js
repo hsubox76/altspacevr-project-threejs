@@ -25,10 +25,11 @@ buildApp.containerHeight = document.getElementById('container').clientHeight;
 buildApp.containerTop = 0;
 buildApp.containerLeft = 0;
 
-// Movement constants
+// Movement vars
 buildApp.strideLength = 50;
 buildApp.turnSpeed = 0.5;
 buildApp.playerHeight = 200;
+buildApp.playerVelocity = 0;
 
 // Shooting vars
 buildApp.shootVelocity = 50;
@@ -269,10 +270,35 @@ buildApp.walk = function (direction) {
   var nextStepCollide = this.lookAheadCollide(this.camera.position, xUnits, zUnits);
   if (!nextStepCollide) {
     this.camera.position.x += xUnits;
-    this.camera.position.y = nextYHeight + this.playerHeight;
     this.camera.position.z += zUnits;
+    // if player has to fall
+    if (nextYHeight < this.camera.position.y - this.playerHeight) {
+      this.startFall(nextYHeight + this.playerHeight);
+    } else {
+      this.camera.position.y = nextYHeight + this.playerHeight;
+    }
   }
   //this.render();
+};
+
+
+// Set parameters at start of fall
+buildApp.startFall = function (fallToY) {
+  this.playerYTarget = fallToY;
+  this.playerFalling = true;
+};
+
+// Run each frame during fall
+buildApp.fall = function () {
+  // have player fall slower than blocks for better fall effect
+  this.playerVelocity += this.gravity/4;
+  if (this.camera.position.y + this.playerVelocity >= this.playerYTarget) {
+    this.camera.position.y += this.playerVelocity;
+  } else {
+    this.camera.position.y = this.playerYTarget;
+    this.playerFalling = false;
+    console.log(this.camera.position.y);
+  }
 };
 
 
@@ -455,6 +481,9 @@ buildApp.render = function () {
   requestAnimationFrame(buildApp.render);
   buildApp.updateShotObjects();
   buildApp.renderer.render(buildApp.scene, buildApp.camera);
+  if (buildApp.playerFalling === true) {
+    buildApp.fall();
+  }
 
 };
 

@@ -112,7 +112,6 @@ buildApp.getIntersect = function(e) {
 
 // Class for new building blocks
 buildApp.Block = function (mat) {
-  console.log(mat);
   this.mesh = new THREE.Mesh(buildApp.cubeGeo, mat);
   this.size = buildApp.cubeSize;
   this.shootDirection = new THREE.Vector3();
@@ -229,6 +228,7 @@ buildApp.onKeyUp = function(event) {
 
 };
 
+// encompasses mouse-hold-down for look mode and mouse clicks for build/destroy
 buildApp.onMouseDown = function(event) {
   
   event.preventDefault();
@@ -263,6 +263,7 @@ buildApp.onMouseDown = function(event) {
 
 };
 
+// For look mode and for placing helper cube during build mode
 buildApp.onMouseMove = function(event) {
 
   event.preventDefault();
@@ -334,27 +335,32 @@ buildApp.lookAheadCollide = function (pos, x, z) {
 buildApp.walk = function (directionX, directionZ) {
   var xUnits, zUnits, xComp, yComp;
   var direction;
+
   this.updateCamVector();
+
   var zVector = this.camVector.normalize();
   var xVector = new THREE.Vector3();
+
   xVector.crossVectors(this.camVector, this.camera.up).normalize();
-  if (directionZ !== 0) {
+
+  if (directionZ !== 0) { // walk fwd/back
     xComp = this.camVector.x;
     zComp = this.camVector.z;
     direction = directionZ;
   }
-  if (directionX !== 0) {
+  if (directionX !== 0) { // strafe
     xComp = xVector.x;
     zComp = xVector.z;
     direction = directionX;
-    console.log(xVector);
   }
-  //var vecLength = Math.sqrt((xComp*xComp)+(zComp*zComp));
-  //var multiplier = directionZ * this.strideLength/vecLength;
+
   xUnits = direction * this.strideLength * xComp;
   zUnits = direction * this.strideLength * zComp;
+
+  // Check for climb/collision/fall
   var nextYHeight = this.lookAheadYHeight(this.camera.position.x + xUnits, this.camera.position.z + zUnits);
   var nextStepCollide = this.lookAheadCollide(this.camera.position, xUnits, zUnits);
+
   if (!nextStepCollide) {
     this.camera.position.x += xUnits;
     this.camera.position.z += zUnits;
@@ -383,7 +389,6 @@ buildApp.fall = function () {
   } else {
     this.camera.position.y = this.playerYTarget;
     this.playerFalling = false;
-    console.log(this.camera.position.y);
   }
 };
 
@@ -444,6 +449,7 @@ buildApp.shoot = function () {
 
 };
 
+// Track and update all shot blocks while they are in the air.
 buildApp.updateShotObjects = function () {
 
   var block;
@@ -547,9 +553,11 @@ buildApp.init = function () {
 
   this.scene = new THREE.Scene();
 
+  // Raycasters for mouse build/destroy
   this.raycaster = new THREE.Raycaster();
   this.mouse = new THREE.Vector2();
 
+  // Raycasters for player collision
   this.raycasterGround = new THREE.Raycaster();
   this.raycasterLookAhead = new THREE.Raycaster();
 
@@ -559,6 +567,7 @@ buildApp.init = function () {
   this.createRolloverCube();
   this.defineCube();
 
+  // Heads up display
   this.hud = new this.Hud();
 
   this.hud.modeEl = document.getElementById('mode');
@@ -588,11 +597,16 @@ buildApp.init = function () {
 
 };
 
+// Render - called ~60 fps
+// Updates physics objects (falling blocks/falling player) and renders scene
 buildApp.render = function () {
 
   requestAnimationFrame(buildApp.render);
+
   buildApp.updateShotObjects();
+
   buildApp.renderer.render(buildApp.scene, buildApp.camera);
+
   if (buildApp.playerFalling === true) {
     buildApp.fall();
   }

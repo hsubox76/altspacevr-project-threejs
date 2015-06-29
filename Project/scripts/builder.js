@@ -1,6 +1,7 @@
 // TODO:
-// 3) chamber different colors of blocks
 // 4) strafe
+// 5) auto resize
+// 6) more colors
 
 // Main namespace
 var buildApp = {};
@@ -9,6 +10,8 @@ var buildApp = {};
 buildApp.BUTTONS = {};
 buildApp.BUTTONS.W = 87;
 buildApp.BUTTONS.S = 83;
+buildApp.BUTTONS.A = 65;
+buildApp.BUTTONS.D = 68;
 buildApp.BUTTONS.SHIFT = 16;
 buildApp.BUTTONS.CTRL = 17;
 buildApp.BUTTONS.SPACE = 32;
@@ -186,10 +189,16 @@ buildApp.onKeyDown = function(event) {
   event.preventDefault();
 
   if (event.keyCode === buildApp.BUTTONS.W) {
-    buildApp.walk(1);
+    buildApp.walk(0,1);
   }
   if (event.keyCode === buildApp.BUTTONS.S) {
-    buildApp.walk(-1);
+    buildApp.walk(0,-1);
+  }
+  if (event.keyCode === buildApp.BUTTONS.A) {
+    buildApp.walk(-1,0);
+  }
+  if (event.keyCode === buildApp.BUTTONS.D) {
+    buildApp.walk(1,0);
   }
   if (event.keyCode === buildApp.BUTTONS.SPACE) {
     buildApp.shoot();
@@ -329,15 +338,28 @@ buildApp.lookAheadCollide = function (pos, x, z) {
 };
 
 // Walk camera fwd/back in response to keypress
-buildApp.walk = function (direction) {
-  var xUnits, zUnits;
+buildApp.walk = function (directionX, directionZ) {
+  var xUnits, zUnits, xComp, yComp;
+  var direction;
   this.updateCamVector();
-  var xComp = this.camVector.x;
-  var zComp = this.camVector.z;
-  var vecLength = Math.sqrt((xComp*xComp)+(zComp*zComp));
-  var multiplier = direction * this.strideLength/vecLength;
-  xUnits = multiplier * xComp;
-  zUnits = multiplier * zComp;
+  var zVector = this.camVector.normalize();
+  var xVector = new THREE.Vector3();
+  xVector.crossVectors(this.camVector, this.camera.up).normalize();
+  if (directionZ !== 0) {
+    xComp = this.camVector.x;
+    zComp = this.camVector.z;
+    direction = directionZ;
+  }
+  if (directionX !== 0) {
+    xComp = xVector.x;
+    zComp = xVector.z;
+    direction = directionX;
+    console.log(xVector);
+  }
+  //var vecLength = Math.sqrt((xComp*xComp)+(zComp*zComp));
+  //var multiplier = directionZ * this.strideLength/vecLength;
+  xUnits = direction * this.strideLength * xComp;
+  zUnits = direction * this.strideLength * zComp;
   var nextYHeight = this.lookAheadYHeight(this.camera.position.x + xUnits, this.camera.position.z + zUnits);
   var nextStepCollide = this.lookAheadCollide(this.camera.position, xUnits, zUnits);
   if (!nextStepCollide) {

@@ -153,7 +153,7 @@ buildApp.Hud = function () {
   this.mode = 'none';
   this.modeImages = {
     'none': '',
-    'look': 'eye_icon.png',
+    'look': 'eye_icon_2.png',
     'build': 'cube_icon.png',
     'delete': 'delete_icon.png'
   };
@@ -524,7 +524,10 @@ buildApp.createRolloverCube = function() {
 buildApp.defineCube = function() {
   this.cubeGeo = new THREE.BoxGeometry(this.cubeSize, this.cubeSize, this.cubeSize);
   for (i = 0; i < buildApp.palette.length; i++) {
-    this.blockMats.push(new THREE.MeshLambertMaterial({color: buildApp.palette[i].hex, shading: THREE.FlatShading}));
+    this.blockMats.push(new THREE.MeshLambertMaterial({
+      color: buildApp.palette[i].hex,
+      shading: THREE.FlatShading
+    }));
   }
   this.currentMat = 0;
 };

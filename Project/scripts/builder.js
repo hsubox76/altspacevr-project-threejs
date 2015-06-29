@@ -1,8 +1,3 @@
-// TODO:
-// 4) strafe
-// 5) auto resize
-// 6) more colors
-
 // Main namespace
 var buildApp = {};
 
@@ -22,9 +17,12 @@ buildApp.BUTTONS.NoButton = -1;
 
 // Colors
 buildApp.palette = [
-  { html: '#feb74c', hex: 0xfeb74c},
-  { html: '#0088cc', hex: 0x0088cc},
-  { html: '#aa88cc', hex: 0xaa88cc}
+  { html: '#cc3333', hex: 0xcc3333}, // red
+  { html: '#FE9244', hex: 0xfe9244}, // orange
+  { html: '#FEDB38', hex: 0xfedb38}, // yellow
+  { html: '#54AA5A', hex: 0x54AA5A}, // green
+  { html: '#0088cc', hex: 0x0088cc}, // blue
+  { html: '#aa88cc', hex: 0xaa88cc}  // purple
 ];
 
 // interface mode - look, build, shoot
@@ -158,11 +156,6 @@ buildApp.Hud = function () {
     'look': 'eye_icon.png',
     'build': 'cube_icon.png',
     'delete': 'delete_icon.png'
-  };
-  this.ammo = 'yellow';
-  this.ammoProps = {
-    0: '#feb74c',
-    1: '#0088cc'
   };
 };
 
@@ -567,6 +560,7 @@ buildApp.init = function () {
 
   this.hud.modeEl = document.getElementById('mode');
   this.hud.ammoEl = document.getElementById('ammo');
+  this.hud.changeAmmo(0);
 
   this.renderer = new THREE.WebGLRenderer({antialias: true});
   this.renderer.setClearColor(0xbbeeff);
@@ -575,6 +569,15 @@ buildApp.init = function () {
   this.container = document.getElementById('container');
 
   this.container.appendChild(this.renderer.domElement);
+
+  // Resize display when window resizes
+  window.onresize = function () {
+    buildApp.renderer.setSize( buildApp.container.clientWidth, buildApp.container.clientHeight - 1 );
+
+    buildApp.camera.aspect = buildApp.container.clientWidth/buildApp.container.clientHeight;
+    buildApp.camera.updateProjectionMatrix();
+
+  };
 
   document.addEventListener('keydown', this.onKeyDown, false);
   document.addEventListener('mousedown', this.onMouseDown, false);
@@ -595,3 +598,4 @@ buildApp.render = function () {
 
 buildApp.init();
 buildApp.render();
+

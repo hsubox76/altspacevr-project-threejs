@@ -589,6 +589,10 @@ buildApp.init = function () {
     buildApp.camera.aspect = buildApp.container.clientWidth/buildApp.container.clientHeight;
     buildApp.camera.updateProjectionMatrix();
 
+    // Also need to update stored values of container dimensions, used by mouse interface
+    buildApp.containerWidth = document.getElementById('container').clientWidth;
+    buildApp.containerHeight = document.getElementById('container').clientHeight;
+
   };
 
   document.addEventListener('keydown', this.onKeyDown, false);
